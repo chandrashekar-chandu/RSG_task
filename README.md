@@ -170,4 +170,41 @@ All 17 tests validate:
 ├── ARCHITECTURE.md                       # Architectural deep dive & Mermaid diagrams
 └── AI_REFLECTION.md                      # AI tools usage report & GET interview prep sheet
 ```
+
+
+---
+
+## 🤖 5. AI Usage & Engineering Reflection
+
+### 1. Which AI Tools Were Used
+- **Google Antigravity**: Primary agentic AI coding environment used for end-to-end task decomposition, autonomous file editing, terminal execution, automated test creation, and architectural verification.
+- **ChatGPT (OpenAI)**: Used for brainstorming edge cases in transactional datasets, formulating SQL query templates, and validating prompt strategies for Text-to-SQL.
+
+### 2. How AI Was Used During Development
+- **Data Profiling & Schema Modeling**: Used AI to analyze `ai_bi_assistant_sales_data - GET.csv` and identify data anomalies (missing unit price on row `TXN0051`, returned order `TXN0033`, and non-ISO date formats).
+- **Vectorless RAG Architecture**: Leveraged AI to evaluate Vectorless RAG (Text-to-SQL) vs. Vector DB RAG, confirming that SQL-backed deterministic execution eliminates mathematical hallucinations.
+- **Security & Guardrail Design**: Pair-programmed with AI to build regex AST checks in `validator.py` that reject destructive operations (`DROP`, `DELETE`, `UPDATE`) and prevent multi-statement SQL injection attacks.
+- **Automated Test Generation**: Used AI to design 17 comprehensive test cases covering valid questions, edge cases, and API routes.
+
+### 3. Which Problems Were Encountered
+1. **Missing Data in CSV**: Row 51 (`TXN0051`) had a missing `Unit_price` for "Laptop Stand", causing `NULL` calculation errors.
+2. **SQLite Date Incompatibility**: Dates were in `DD-MM-YYYY` format. SQLite date functions like `strftime('%Y-%m', order_date)` require ISO `YYYY-MM-DD` format.
+3. **Revenue Distortion by Returns**: Transaction `TXN0033` has status `Returned` (₹19,000 value). Blindly summing all rows distorted total net revenue.
+4. **Windows Console Unicode Crash**: Printing the Indian Rupee symbol (`₹`) threw `UnicodeEncodeError: 'charmap'` on Windows `cp1252` console.
+5. **SQL Injection Risks**: Direct natural language-to-SQL generation is vulnerable to malicious inputs like `DROP TABLE sales;`.
+
+### 4. How They Were Debugged and Resolved
+- **Imputation**: Inspected all other entries for "Laptop Stand" (price was ₹1,200 across all orders) and implemented automatic median-based imputation.
+- **Date Standardizing**: Used `pd.to_datetime(df['Order_date'], format='%d-%m-%Y').dt.strftime('%Y-%m-%d')` in `database.py` during ETL ingestion.
+- **Status Filter**: Applied strict `WHERE status = 'Completed'` condition across all revenue calculations.
+- **Encoding Fix**: Added `sys.stdout.reconfigure(encoding='utf-8')` to ensure safe terminal rendering on Windows.
+- **Guardrails**: Built `validator.py` to enforce read-only `SELECT`/`WITH` statements and reject multi-statement injections.
+
+### 5. What Would Be Improved with Another Day of Work
+1. **Conversational Memory**: Implement multi-turn stateful follow-ups using **LangGraph** (e.g., asking *"What about in the North region?"* after asking for top product).
+2. **Semantic Caching**: Integrate Redis caching to store frequently asked questions and reduce response latency to sub-2ms.
+3. **Smart Visualizations**: Add automatic chart type detection (e.g., automatically pick between Bar, Line, or Donut based on query cardinality).
+4. **Relational Normalization**: Split the flat table into a 3NF Star Schema (`orders`, `products`, `customers`) with foreign keys.
+
+
 # RSG_task
