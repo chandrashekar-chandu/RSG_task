@@ -1,36 +1,69 @@
 # Mini AI Business Intelligence Assistant (Vectorless RAG)
 
-A production-grade, test-driven **Mini AI Business Intelligence Assistant** built for the **RSG Research Graduate Engineer Trainee (GET) Selection Challenge**.
+A production-grade, test-driven **Mini AI Business Intelligence Assistant** built for the **RSG Research Graduate Engineer Trainee (GET) Selection Challenge** (Training & Placement Office, RGUKT-Basar).
 
 The system enables business executives and analysts to query sales transactions using natural language and receive **deterministic, SQL-backed insights** with supporting figures, interactive visualizations, and strict security guardrails.
 
 ---
 
-## 🌟 Key Features
+## 🌟 Executive Summary & Core Architectural Highlights
 
-1. **Vectorless RAG Architecture**:
-   - Rather than converting tabular numbers into vector embeddings (which causes arithmetic hallucinations and aggregation failures), this system maps natural language into verified SQLite SQL queries.
-   - **100% Deterministic Arithmetic**: Exact sums, averages, rankings, and month-over-month differences computed directly by the database engine.
-2. **Robust Data Pipeline & Ingestion**:
-   - Automated cleaning and type casting of CSV data.
-   - **Imputation Strategy**: Imputes missing unit price in row `TXN0051` (Laptop Stand) to ₹1,200 using product median.
-   - **ISO Date Normalization**: Standardizes `DD-MM-YYYY` to `YYYY-MM-DD` for native SQLite date functions.
-   - **Business Metric Logic**: Disregards returned orders (`status = 'Returned'`) when computing realized net revenue.
-3. **Multi-Layered Security Guardrails**:
-   - Enforces read-only execution (`SELECT` / `WITH` only).
-   - Rejects destructive operations (`DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`, `TRUNCATE`).
-   - Blocks stacked queries and multi-statement SQL injections.
-   - Validates table and column whitelist.
-4. **Interactive Streamlit Dashboard**:
-   - Executive KPI cards (Total Net Revenue, Completed Orders, Top Product, Peak Month).
-   - 1-click preset buttons for the 5 challenge benchmark questions.
-   - Interactive charts (trend lines, bar charts for product/regional performance).
-   - Database Explorer to inspect and filter raw/cleaned records.
-5. **FastAPI REST API**:
-   - Clean microservice endpoints: `/api/query`, `/api/health`, `/api/summary`, and `/api/schema`.
-   - Interactive Swagger API documentation at `/docs`.
-6. **Automated Pytest Test Suite**:
-   - 17 test cases covering data cleaning, all 5 benchmark questions, edge cases, SQL security injection defense, and API endpoints.
+| Pillar | Implementation Highlights |
+| :--- | :--- |
+| **Architectural Pattern** | **Vectorless RAG (Text-to-SQL + Relational Engine)**: Eliminates arithmetic hallucinations common in vector similarity lookups by delegating all aggregations directly to SQLite. |
+| **Hybrid AI Engine** | **Dual-Engine Architecture**: <br>1. *Local Semantic Entity & Intent Parser*: Works 100% out of the box with zero external keys, parsing products, regions, categories, channels, months, and metrics.<br>2. *Direct LLM Gateway*: Pluggable support for **Google Gemini (`gemini-1.5-flash`)** and **OpenAI (`gpt-4o-mini`)** for arbitrary open-ended queries. |
+| **Data Hygiene & ETL** | Automatic imputation of missing unit price on `TXN0051` (Laptop Stand $\rightarrow$ ₹1,200), ISO-8601 date standardizing (`YYYY-MM-DD`), and strict exclusion of returned orders (`status = 'Completed'`). |
+| **Security & Guardrails** | Multi-layer AST and regex validation: strictly enforces read-only `SELECT`/`WITH` queries, blocks destructive statements (`DROP`, `DELETE`, `UPDATE`), and prevents multi-statement SQL injection attacks. |
+| **Full-Stack Delivery** | Complete system containing an embedded **SQLite** database, **FastAPI** backend REST microservice, **Streamlit** interactive dashboard, and a **Pytest** automated test suite (17/17 tests passing). |
+
+---
+
+## 📋 Compliance with Assessment Requirements
+
+### 1. Data Management
+* **Data Storage**: Ingests `ai_bi_assistant_sales_data - GET.csv` into an ACID-compliant embedded SQLite database (`sales_bi.db`).
+* **Anomalies Handled**:
+  * Missing `Unit_price` on `TXN0051` (Laptop Stand) is automatically imputed to ₹1,200.0 using product median.
+  * Dates in `DD-MM-YYYY` format are converted to ISO `YYYY-MM-DD` so SQLite `strftime()` functions operate natively.
+  * Realized net revenue accounts for returned orders by filtering `status = 'Completed'`.
+* **Indexing**: B-Tree indexes created on `order_date`, `product`, `region`, and `status`.
+
+### 2. Backend API
+* Built with **FastAPI** and **Pydantic v2**:
+  * `POST /api/query`: Accepts natural language question, processes via Vectorless RAG, and returns structured JSON (answer, executed SQL, raw data rows, status, latency).
+  * `GET /api/health`: Health status and database row count.
+  * `GET /api/summary`: Top-level executive KPIs.
+  * `GET /api/schema`: Database schema and business rules.
+
+### 3. Analytics (Deterministic Calculations)
+* Computes mathematical results via deterministic SQLite relational queries rather than LLM text approximations.
+* Returns verified figures: gross revenue, total discounts, net revenue, units sold, order counts, and percentages.
+
+### 4. AI Integration & Security Guardrails
+* **Query Validation**: Every query is inspected by `validator.py` before execution.
+* **Destructive Command Defense**: Rejects `DROP`, `DELETE`, `UPDATE`, `INSERT`, `ALTER`, `TRUNCATE`, `EXEC`, `PRAGMA`.
+* **Hallucination Prevention**:
+  * Zero LLM arithmetic (math is executed by SQLite).
+  * Out-of-scope question detection (gracefully rejects non-sales questions like weather or company gossip).
+  * SQL transparency (displays the generated SQL and raw table alongside the answer).
+
+### 5. User Interface
+* **Streamlit Dashboard** featuring:
+  * Executive KPI summary cards (Total Revenue, Completed Orders, Top Product, Peak Month).
+  * 1-click preset buttons for the 5 challenge benchmark questions.
+  * Free-text question input box.
+  * Interactive visualizations: dynamic revenue line charts and regional/product bar charts.
+  * **Database Explorer** tab to inspect and filter raw/cleaned records.
+  * **Optional LLM API Key** input in the sidebar for evaluator testing.
+
+### 6. Automated Testing
+* **17 automated test cases** (exceeding the 5 test cases required):
+  * Data cleaning and price imputation
+  * All 5 benchmark assessment questions
+  * Edge cases (returned order exclusion, 0 quantity)
+  * SQL injection defense (`DROP TABLE`, `DELETE`, stacked multi-statements)
+  * Out-of-scope query rejection
+  * FastAPI endpoints verification
 
 ---
 
@@ -38,83 +71,106 @@ The system enables business executives and analysts to query sales transactions 
 
 ```mermaid
 flowchart TD
-    User["👤 Business User"] -->|Natural Language Question| UI["🖥️ Streamlit UI / FastAPI REST Endpoint"]
-    UI -->|Question| Agent["🧠 Vectorless RAG Engine (agent.py)"]
+    User["👤 Business Executive / Analyst"] -->|Natural Language Question| UI["🖥️ Streamlit UI / FastAPI Gateway"]
     
-    subgraph Security Guardrails
-        Agent -->|Proposed SQL| Validator["🛡️ SQL Security Validator (validator.py)"]
-        Validator -->|Check: Read-Only, No Injection, Whitelist| Valid{Safe?}
+    subgraph Core Intelligence Layer
+        UI --> Agent["🧠 Vectorless RAG Engine (agent.py)"]
+        Agent --> Router{"Intent Routing"}
+        Router -->|Out-of-the-Box / Zero-Key| SemanticParser["🔍 Dynamic Multi-Entity Parser"]
+        Router -->|With API Key| LLMGateway["🤖 LLM Gateway (Gemini / OpenAI)"]
     end
     
-    Valid -->|No| Reject["❌ Return Security Violation Response"]
+    subgraph Security Guardrails
+        SemanticParser --> Validator["🛡️ SQL Security Validator (validator.py)"]
+        LLMGateway --> Validator
+        Validator -->|Check: Read-Only, No Injection, Whitelist| Valid{Is Safe?}
+    end
+    
+    Valid -->|No| Reject["🚨 Return Security Violation Response"]
     Valid -->|Yes| DBEngine["🗄️ SQLite Database (sales_bi.db)"]
     
-    subgraph Data Layer
-        CSV["📄 Raw CSV"] -->|Data Cleaning & Imputation| ETL["⚙️ ETL Pipeline (database.py)"]
+    subgraph Storage & ETL
+        CSV["📄 Sales CSV"] -->|Clean, Impute & Normalize| ETL["⚙️ ETL Pipeline (database.py)"]
         ETL -->|Indexed Schema| DBEngine
     end
     
     DBEngine -->|Deterministic Data Rows| Synthesizer["📊 Narrative & Metrics Synthesizer"]
-    Synthesizer -->|Answer + SQL + Table + Chart| UI
+    Synthesizer -->|Structured JSON / UI View| UI
 ```
 
 ---
 
 ## 📊 Benchmark Answers to the 5 Challenge Questions
 
-All answers are verified against the cleaned dataset:
+All answers are deterministically verified against the cleaned sales database:
 
-| # | Question | SQL Query | Result Summary |
+| # | Assessment Question | Executed SQL Query | Verified Benchmark Answer |
 |---|---|---|---|
-| **1** | *What is the total revenue?* | `SELECT SUM(net_revenue) FROM sales_transactions WHERE status = 'Completed'` | **₹1,445,200.00** Net (Gross: ₹1,449,700, Discounts: ₹4,500 across 50 completed orders). |
-| **2** | *Which product generated the highest revenue?* | `SELECT product, SUM(net_revenue) FROM sales_transactions WHERE status = 'Completed' GROUP BY product ORDER BY 2 DESC LIMIT 1` | **Monitor** with **₹473,000.00** (50 units sold in 9 orders). |
-| **3** | *What is the monthly revenue trend?* | `SELECT strftime('%Y-%m', order_date), SUM(net_revenue) FROM sales_transactions WHERE status = 'Completed' GROUP BY 1 ORDER BY 1` | Jan: ₹210,250 • Feb: ₹234,600 • Mar: ₹223,900 • Apr: ₹240,700 • **May: ₹318,500 (Peak)** • Jun: ₹217,250. |
-| **4** | *Which region generated the highest sales?* | `SELECT region, SUM(net_revenue) FROM sales_transactions WHERE status = 'Completed' GROUP BY region ORDER BY 2 DESC LIMIT 1` | **South Region** with **₹411,200.00** (28.45% of total revenue). |
-| **5** | *How did revenue change between two months?* | Window function `LAG()` over monthly sales | Highest growth in **May 2026**: **+₹77,800.00 (+32.32%)** compared to April. |
+| **1** | *What is the total revenue?* | `SELECT SUM(gross_revenue), SUM(discount_amount), SUM(net_revenue), COUNT(*) FROM sales_transactions WHERE status = 'Completed'` | **₹1,445,200.00** Net Revenue (Gross: ₹1,449,700, Discounts: ₹4,500 across 50 completed transactions). |
+| **2** | *Which product generated the highest revenue?* | `SELECT product, category, COUNT(*), SUM(quantity), ROUND(SUM(net_revenue), 2) FROM sales_transactions WHERE status = 'Completed' GROUP BY product, category ORDER BY 5 DESC LIMIT 1` | **Monitor** with **₹473,000.00** across 50 units sold in 9 orders. *(Followed by Desk: ₹222,500 and Office Chair: ₹210,600)*. |
+| **3** | *What is the monthly revenue trend?* | `SELECT strftime('%Y-%m', order_date), SUM(net_revenue) FROM sales_transactions WHERE status = 'Completed' GROUP BY 1 ORDER BY 1 ASC` | • Jan: ₹210,250<br>• Feb: ₹234,600<br>• Mar: ₹223,900<br>• Apr: ₹240,700<br>• **May: ₹318,500 (Peak Month)**<br>• Jun: ₹217,250 |
+| **4** | *Which region generated the highest sales?* | `SELECT region, SUM(net_revenue), ROUND(SUM(net_revenue) * 100.0 / (SELECT SUM(net_revenue) FROM sales_transactions WHERE status = 'Completed'), 2) FROM sales_transactions WHERE status = 'Completed' GROUP BY region ORDER BY 2 DESC LIMIT 1` | **South Region** with **₹411,200.00** (28.45% of total revenue). *(Ranking: 1. South ₹411,200, 2. North ₹384,450, 3. East ₹352,700, 4. West ₹296,850)*. |
+| **5** | *How did revenue change between two months?* | `WITH monthly_sales AS (...) SELECT month, net_revenue, LAG(net_revenue) OVER (...), net_revenue - LAG(net_revenue) OVER (...) FROM monthly_sales` | Peak MoM increase in **May 2026**: **+₹77,800.00 (+32.32%)** vs. April. Largest drop in **June 2026**: **-₹101,250.00 (-31.79%)** vs. May. |
 
 ---
 
-## 🚀 Setup & Execution Instructions
+## 🔎 Extended Arbitrary Query Support
+
+Beyond the 5 challenge questions, the assistant dynamically resolves hundreds of other business questions:
+
+* **Product Filters**: *"What was the revenue for Wireless Mouse?"* $\rightarrow$ **₹148,200.00**
+* **Multi-Filter Combination**: *"How many desks were sold in South region?"* $\rightarrow$ **7 units (₹87,500.00)**
+* **Month-Specific Query**: *"What was the total revenue in May 2026?"* $\rightarrow$ **₹318,500.00 (8 orders, 116 units)**
+* **Channel Comparison**: *"Which sales channel had more revenue?"* $\rightarrow$ **Online: ₹752,750 vs Retail: ₹692,450**
+* **Averages & AOV**: *"What is the average order value?"* $\rightarrow$ **₹28,904.00**
+* **Discounts**: *"Total discount given on Monitors"* $\rightarrow$ **₹2,000.00 across 3 orders**
+* **Category Breakdown**: *"Revenue by category"* $\rightarrow$ **Accessories, Electronics, Furniture**
+
+---
+
+## 🚀 Setup & Execution Guide
 
 ### 1. Prerequisites
-- Python 3.10+
-- Pip package manager
+* Python 3.10+
+* Pip package manager
 
-### 2. Install Dependencies
+### 2. Clone & Install Dependencies
 ```bash
+git clone https://github.com/chandrashekar-chandu/RSG_task.git
+cd RSG_task
 pip install -r requirements.txt
 ```
 
-### 3. Initialize the Database
+### 3. Initialize Database (ETL & Ingestion)
 ```bash
 python database.py
 ```
-*Creates `sales_bi.db`, applies schema indexes, cleans missing records, and outputs key KPIs.*
+*Creates `sales_bi.db`, cleans data, imputes missing prices, builds indexes, and prints top KPIs.*
 
 ---
 
 ## 🖥️ Running the Application
 
-### Option A: Launch Interactive Streamlit UI
+### Option A: Launch Interactive Streamlit UI (Recommended)
 ```bash
 streamlit run app.py
 ```
-Open your browser at `http://localhost:8501`.
+*Opens interactive BI Dashboard at `http://localhost:8501`.*
 
 ### Option B: Launch FastAPI REST Server
 ```bash
 uvicorn api:app --reload --port 8000
 ```
-Open interactive Swagger documentation at `http://localhost:8000/docs`.
+*Interactive Swagger API documentation accessible at `http://localhost:8000/docs`.*
 
-#### Test API Query via cURL:
+#### Sample API Query via cURL:
 ```bash
 curl -X POST "http://127.0.0.1:8000/api/query" \
      -H "Content-Type: application/json" \
      -d "{\"question\": \"What is the total revenue?\"}"
 ```
 
-#### Expected API JSON Response:
+#### Structured API Response:
 ```json
 {
   "question": "What is the total revenue?",
@@ -137,68 +193,50 @@ curl -X POST "http://127.0.0.1:8000/api/query" \
 
 ---
 
-## 🧪 Running Automated Tests
+## 🧪 Automated Testing
 
-Run the complete test suite:
+Execute the complete test suite:
 ```bash
 python -m pytest test_assistant.py -v
 ```
 
 All 17 tests validate:
-- Ingestion and missing value imputation
+- Ingestion, imputation, and date normalization
 - All 5 benchmark questions
-- Edge case handling (Returned orders, 0 quantity)
+- Edge cases (returned orders excluded, 0 quantity)
 - SQL injection guardrail defense (`DROP`, `DELETE`, `UPDATE`, stacked queries)
-- Out-of-scope question handling
-- FastAPI endpoint responses (`/api/health`, `/api/summary`, `/api/query`)
-
----
-
-## 📂 Project Structure
-
-```
-├── ai_bi_assistant_sales_data - GET.csv  # Original sales dataset
-├── sales_bi.db                           # Cleaned SQLite analytical database
-├── database.py                           # ETL, data cleaning, schema, SQLite queries
-├── validator.py                          # SQL security guardrails & injection defense
-├── agent.py                              # Vectorless RAG engine & answer synthesizer
-├── api.py                                # FastAPI REST service
-├── app.py                                # Streamlit visual BI dashboard
-├── test_assistant.py                     # 17 automated pytest test cases
-├── requirements.txt                      # Project dependencies
-├── README.md                             # Setup & execution guide
-├── ARCHITECTURE.md                       # Architectural deep dive & Mermaid diagrams
-└── AI_REFLECTION.md                      # AI tools usage report & GET interview prep sheet
-```
-
+- Out-of-scope question rejection
+- FastAPI endpoints (`/api/health`, `/api/summary`, `/api/query`)
 
 ---
 
 ## 🤖 5. AI Usage & Engineering Reflection
 
 ### 1. Which AI Tools Were Used
-- **Google Antigravity**: Primary agentic AI coding environment used for end-to-end task decomposition, autonomous file editing, automated test creation, and architectural verification.
-- **ChatGPT (OpenAI)**: Used for brainstorming edge cases in transactional datasets, formulating SQL query templates, and validating prompt strategies for Text-to-SQL.
+* **Google Antigravity**: Primary agentic AI coding environment used for end-to-end task decomposition, autonomous file editing, terminal execution, automated test creation, and architectural verification.
+* **ChatGPT (OpenAI)**: Used for brainstorming edge cases in transactional datasets, formulating SQL query templates, and validating prompt strategies for Text-to-SQL.
 
 ### 2. How AI Was Used During Development
-- **Data Profiling & Schema Modeling**: Used AI to analyze `ai_bi_assistant_sales_data - GET.csv` and identify data anomalies (missing unit price on row `TXN0051`, returned order `TXN0033`, and non-ISO date formats).
-- **Vectorless RAG Architecture**: Leveraged AI to evaluate Vectorless RAG (Text-to-SQL) vs. Vector DB RAG, confirming that SQL-backed deterministic execution eliminates mathematical hallucinations.
-- **Security & Guardrail Design**: Pair-programmed with AI to build regex AST checks in `validator.py` that reject destructive operations (`DROP`, `DELETE`, `UPDATE`) and prevent multi-statement SQL injection attacks.
-- **Automated Test Generation**: Used AI to design 17 comprehensive test cases covering valid questions, edge cases, and API routes.
+* **Data Profiling & Schema Modeling**: Used AI to analyze `ai_bi_assistant_sales_data - GET.csv` and identify data anomalies (missing unit price on row `TXN0051`, returned order `TXN0033`, and non-ISO date formats).
+* **Vectorless RAG Architecture**: Leveraged AI to evaluate Vectorless RAG (Text-to-SQL) vs. Vector DB RAG, confirming that SQL-backed deterministic execution eliminates mathematical hallucinations.
+* **Security & Guardrail Design**: Pair-programmed with AI to build regex AST checks in `validator.py` that reject destructive operations (`DROP`, `DELETE`, `UPDATE`) and prevent multi-statement SQL injection attacks.
+* **Automated Test Generation**: Used AI to design 17 comprehensive test cases covering valid questions, edge cases, and API routes.
 
 ### 3. Which Problems Were Encountered
 1. **Missing Data in CSV**: Row 51 (`TXN0051`) had a missing `Unit_price` for "Laptop Stand", causing `NULL` calculation errors.
 2. **SQLite Date Incompatibility**: Dates were in `DD-MM-YYYY` format. SQLite date functions like `strftime('%Y-%m', order_date)` require ISO `YYYY-MM-DD` format.
 3. **Revenue Distortion by Returns**: Transaction `TXN0033` has status `Returned` (₹19,000 value). Blindly summing all rows distorted total net revenue.
 4. **Windows Console Unicode Crash**: Printing the Indian Rupee symbol (`₹`) threw `UnicodeEncodeError: 'charmap'` on Windows `cp1252` console.
-5. **SQL Injection Risks**: Direct natural language-to-SQL generation is vulnerable to malicious inputs like `DROP TABLE sales;`.
+5. **Month Substring False Positive**: The year string `"2026"` contains `"02"`, which caused a 2-digit month parser to match February when asking about May 2026.
+6. **SQL Injection Risks**: Direct natural language-to-SQL generation is vulnerable to malicious inputs like `DROP TABLE sales;`.
 
 ### 4. How They Were Debugged and Resolved
-- **Imputation**: Inspected all other entries for "Laptop Stand" (price was ₹1,200 across all orders) and implemented automatic median-based imputation.
-- **Date Standardizing**: Used `pd.to_datetime(df['Order_date'], format='%d-%m-%Y').dt.strftime('%Y-%m-%d')` in `database.py` during ETL ingestion.
-- **Status Filter**: Applied strict `WHERE status = 'Completed'` condition across all revenue calculations.
-- **Encoding Fix**: Added `sys.stdout.reconfigure(encoding='utf-8')` to ensure safe terminal rendering on Windows.
-- **Guardrails**: Built `validator.py` to enforce read-only `SELECT`/`WITH` statements and reject multi-statement injections.
+* **Imputation**: Inspected all other entries for "Laptop Stand" (price was ₹1,200 across all orders) and implemented automatic median-based imputation.
+* **Date Standardizing**: Used `pd.to_datetime(df['Order_date'], format='%d-%m-%Y').dt.strftime('%Y-%m-%d')` in `database.py` during ETL ingestion.
+* **Status Filter**: Applied strict `WHERE status = 'Completed'` condition across all revenue calculations.
+* **Encoding Fix**: Added `sys.stdout.reconfigure(encoding='utf-8')` to ensure safe terminal rendering on Windows.
+* **Month Map Refinement**: Updated month mappings to match word boundaries and month names (`'may'`, `'june'`), eliminating numeric substring false positives.
+* **Guardrails**: Built `validator.py` to enforce read-only `SELECT`/`WITH` statements and reject multi-statement injections.
 
 ### 5. What Would Be Improved with Another Day of Work
 1. **Conversational Memory**: Implement multi-turn stateful follow-ups using **LangGraph** (e.g., asking *"What about in the North region?"* after asking for top product).
@@ -206,5 +244,31 @@ All 17 tests validate:
 3. **Smart Visualizations**: Add automatic chart type detection (e.g., automatically pick between Bar, Line, or Donut based on query cardinality).
 4. **Relational Normalization**: Split the flat table into a 3NF Star Schema (`orders`, `products`, `customers`) with foreign keys.
 
+---
 
-# RSG_task
+## 🎓 Technical Interview Concepts Quick Reference
+
+* **Vectorless RAG**: Retrieval mechanism that queries structured relational databases using SQL generated from natural language, rather than searching unstructured vector embeddings. Guarantees 100% mathematical accuracy without arithmetic hallucinations.
+* **Agentic AI**: Systems where an LLM functions as a reasoning engine to perceive goals, plan multi-step actions (ReAct pattern), invoke external tools (SQL, APIs), and self-correct based on feedback.
+* **LangChain & LangGraph**: Frameworks for building stateful, multi-actor LLM applications with cyclical graphs and human-in-the-loop controls.
+* **Google ADK & Dify**: Production platforms for orchestrating enterprise AI agents, visual workflow management, and tool integration.
+
+---
+
+## 📂 Project Structure
+
+```
+chandrashekar-chandu/RSG_task/
+├── ai_bi_assistant_sales_data - GET.csv  # Original sales dataset
+├── sales_bi.db                           # Cleaned SQLite analytical database
+├── database.py                           # ETL, data cleaning, schema, SQLite queries
+├── validator.py                          # SQL security guardrails & injection defense
+├── agent.py                              # Hybrid Vectorless RAG engine & answer synthesizer
+├── api.py                                # FastAPI REST service
+├── app.py                                # Streamlit visual BI dashboard
+├── test_assistant.py                     # 17 automated pytest test cases
+├── requirements.txt                      # Project dependencies
+├── README.md                             # Complete project guide & AI reflection
+├── ARCHITECTURE.md                       # Architectural deep dive & Mermaid diagrams
+└── AI_REFLECTION.md                      # Comprehensive GET interview preparation sheet
+```

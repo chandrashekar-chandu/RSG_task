@@ -108,6 +108,13 @@ with st.sidebar:
     except Exception as e:
         st.error(f"Error loading KPIs: {e}")
 
+    with st.expander("🤖 Optional LLM API Key", expanded=False):
+        api_key_input = st.text_input(
+            "Gemini / OpenAI API Key:",
+            type="password",
+            help="Optional. Works 100% out of the box with built-in AI engine. Enter key if you want external LLM open-ended query translation."
+        )
+
     st.divider()
     st.markdown("### Interview Readiness")
     st.info(
@@ -183,7 +190,7 @@ with tab_assistant:
 
     if user_query:
         with st.spinner("Analyzing question, generating SQL & querying database..."):
-            result = assistant.process_query(user_query)
+            result = assistant.process_query(user_query, custom_api_key=api_key_input if api_key_input else None)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
