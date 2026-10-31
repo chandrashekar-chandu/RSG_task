@@ -177,7 +177,7 @@ All 17 tests validate:
 ## 🤖 5. AI Usage & Engineering Reflection
 
 ### 1. Which AI Tools Were Used
-- **Google Antigravity**: Primary agentic AI coding environment used for end-to-end task decomposition, autonomous file editing, terminal execution, automated test creation, and architectural verification.
+- **Google Antigravity**: Primary agentic AI coding environment used for end-to-end task decomposition, autonomous file editing, automated test creation, and architectural verification.
 - **ChatGPT (OpenAI)**: Used for brainstorming edge cases in transactional datasets, formulating SQL query templates, and validating prompt strategies for Text-to-SQL.
 
 ### 2. How AI Was Used During Development
